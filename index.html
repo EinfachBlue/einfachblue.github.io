@@ -1,11 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Trello-like Organizer</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Organizer</title>
 
 <style>
+:root {
+  --bg: #0d1117;
+  --column: #161b22;
+  --card: #1f6feb;
+  --card-text: #ffffff;
+  --accent: #58a6ff;
+  --border: #30363d;
+}
+
 * {
   box-sizing: border-box;
   font-family: system-ui, sans-serif;
@@ -13,15 +22,17 @@
 
 body {
   margin: 0;
-  background: #f4f5f7;
+  background: var(--bg);
+  color: white;
 }
 
 header {
-  padding: 12px;
-  background: #026aa7;
-  color: white;
+  padding: 14px;
+  background: #010409;
+  border-bottom: 1px solid var(--border);
   text-align: center;
   font-weight: bold;
+  color: var(--accent);
 }
 
 .board {
@@ -32,8 +43,8 @@ header {
 }
 
 .column {
-  background: #ebecf0;
-  border-radius: 8px;
+  background: var(--column);
+  border-radius: 10px;
   padding: 10px;
   width: 300px;
   flex-shrink: 0;
@@ -43,7 +54,8 @@ header {
 
 .column h2 {
   margin: 0 0 10px;
-  font-size: 16px;
+  font-size: 15px;
+  color: var(--accent);
 }
 
 .cards {
@@ -55,36 +67,38 @@ header {
 }
 
 .card {
-  background: white;
+  background: var(--card);
+  color: var(--card-text);
   padding: 10px;
-  border-radius: 6px;
-  cursor: grab;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  border-radius: 8px;
+  touch-action: none;
+  user-select: none;
 }
 
-.card:active {
-  cursor: grabbing;
-}
-
-.add {
-  margin-top: 10px;
+.card.dragging {
+  opacity: 0.6;
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
 }
 
 .add input {
   width: 100%;
-  padding: 6px;
+  padding: 7px;
   border-radius: 6px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
+  background: #010409;
+  color: white;
 }
 
 .add button {
   margin-top: 6px;
   width: 100%;
-  padding: 6px;
-  border: none;
+  padding: 7px;
   border-radius: 6px;
-  background: #5aac44;
-  color: white;
+  border: none;
+  background: var(--accent);
+  color: black;
   font-weight: bold;
 }
 
@@ -100,14 +114,14 @@ header {
 </head>
 <body>
 
-<header>Trello-like Organizer</header>
+<header>Organizer</header>
 
 <div class="board">
   <div class="column" data-status="todo">
     <h2>To-do</h2>
     <div class="cards"></div>
     <div class="add">
-      <input placeholder="New task..." />
+      <input placeholder="New task">
       <button>Add</button>
     </div>
   </div>
@@ -116,7 +130,7 @@ header {
     <h2>Working on</h2>
     <div class="cards"></div>
     <div class="add">
-      <input placeholder="New task..." />
+      <input placeholder="New task">
       <button>Add</button>
     </div>
   </div>
@@ -125,46 +139,69 @@ header {
     <h2>Finished</h2>
     <div class="cards"></div>
     <div class="add">
-      <input placeholder="New task..." />
+      <input placeholder="New task">
       <button>Add</button>
     </div>
   </div>
 </div>
 
 <script>
-let draggedCard = null;
+let dragged = null;
+let offsetX = 0;
+let offsetY = 0;
 
 document.querySelectorAll(".add button").forEach(btn => {
   btn.onclick = () => {
     const input = btn.previousElementSibling;
     if (!input.value.trim()) return;
-    addCard(input.value, btn.closest(".column").dataset.status);
+    createCard(input.value, btn.closest(".column").dataset.status);
     input.value = "";
     save();
   };
 });
 
-function addCard(text, status) {
+function createCard(text, status) {
   const card = document.createElement("div");
   card.className = "card";
   card.textContent = text;
-  card.draggable = true;
 
-  card.addEventListener("dragstart", () => draggedCard = card);
-  card.addEventListener("dragend", () => draggedCard = null);
+  card.onpointerdown = e => {
+    dragged = card;
+    const r = card.getBoundingClientRect();
+    offsetX = e.clientX - r.left;
+    offsetY = e.clientY - r.top;
+    card.classList.add("dragging");
+    move(e);
+  };
+
+  document.addEventListener("pointermove", move);
+  document.addEventListener("pointerup", drop);
 
   getColumn(status).appendChild(card);
 }
 
-document.querySelectorAll(".cards").forEach(col => {
-  col.addEventListener("dragover", e => e.preventDefault());
-  col.addEventListener("drop", () => {
-    if (draggedCard) {
-      col.appendChild(draggedCard);
-      save();
-    }
-  });
-});
+function move(e) {
+  if (!dragged) return;
+  dragged.style.left = e.clientX - offsetX + "px";
+  dragged.style.top = e.clientY - offsetY + "px";
+}
+
+function drop(e) {
+  if (!dragged) return;
+
+  dragged.classList.remove("dragging");
+  dragged.style.left = "";
+  dragged.style.top = "";
+
+  const target = document.elementFromPoint(e.clientX, e.clientY);
+  const column = target?.closest(".column");
+  if (column) {
+    column.querySelector(".cards").appendChild(dragged);
+    save();
+  }
+
+  dragged = null;
+}
 
 function getColumn(status) {
   return document.querySelector(`[data-status="${status}"] .cards`);
@@ -173,16 +210,16 @@ function getColumn(status) {
 function save() {
   const data = {};
   document.querySelectorAll(".column").forEach(col => {
-    const status = col.dataset.status;
-    data[status] = [...col.querySelectorAll(".card")].map(c => c.textContent);
+    data[col.dataset.status] =
+      [...col.querySelectorAll(".card")].map(c => c.textContent);
   });
-  localStorage.setItem("trello", JSON.stringify(data));
+  localStorage.setItem("organizer", JSON.stringify(data));
 }
 
 function load() {
-  const data = JSON.parse(localStorage.getItem("trello") || "{}");
-  Object.keys(data).forEach(status =>
-    data[status].forEach(text => addCard(text, status))
+  const data = JSON.parse(localStorage.getItem("organizer") || "{}");
+  Object.entries(data).forEach(([status, cards]) =>
+    cards.forEach(text => createCard(text, status))
   );
 }
 
