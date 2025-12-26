@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Trello-like Organizer</title>
+
+<style>
+* {
+  box-sizing: border-box;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f4f5f7;
+}
+
+header {
+  padding: 12px;
+  background: #026aa7;
+  color: white;
+  text-align: center;
+  font-weight: bold;
+}
+
+.board {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.column {
+  background: #ebecf0;
+  border-radius: 8px;
+  padding: 10px;
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.column h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.cards {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 40px;
+}
+
+.card {
+  background: white;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: grab;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+
+.card:active {
+  cursor: grabbing;
+}
+
+.add {
+  margin-top: 10px;
+}
+
+.add input {
+  width: 100%;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.add button {
+  margin-top: 6px;
+  width: 100%;
+  padding: 6px;
+  border: none;
+  border-radius: 6px;
+  background: #5aac44;
+  color: white;
+  font-weight: bold;
+}
+
+@media (max-width: 768px) {
+  .board {
+    flex-direction: column;
+  }
+  .column {
+    width: 100%;
+  }
+}
+</style>
+</head>
+<body>
+
+<header>Trello-like Organizer</header>
+
+<div class="board">
+  <div class="column" data-status="todo">
+    <h2>To-do</h2>
+    <div class="cards"></div>
+    <div class="add">
+      <input placeholder="New task..." />
+      <button>Add</button>
+    </div>
+  </div>
+
+  <div class="column" data-status="working">
+    <h2>Working on</h2>
+    <div class="cards"></div>
+    <div class="add">
+      <input placeholder="New task..." />
+      <button>Add</button>
+    </div>
+  </div>
+
+  <div class="column" data-status="done">
+    <h2>Finished</h2>
+    <div class="cards"></div>
+    <div class="add">
+      <input placeholder="New task..." />
+      <button>Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let draggedCard = null;
+
+document.querySelectorAll(".add button").forEach(btn => {
+  btn.onclick = () => {
+    const input = btn.previousElementSibling;
+    if (!input.value.trim()) return;
+    addCard(input.value, btn.closest(".column").dataset.status);
+    input.value = "";
+    save();
+  };
+});
+
+function addCard(text, status) {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.textContent = text;
+  card.draggable = true;
+
+  card.addEventListener("dragstart", () => draggedCard = card);
+  card.addEventListener("dragend", () => draggedCard = null);
+
+  getColumn(status).appendChild(card);
+}
+
+document.querySelectorAll(".cards").forEach(col => {
+  col.addEventListener("dragover", e => e.preventDefault());
+  col.addEventListener("drop", () => {
+    if (draggedCard) {
+      col.appendChild(draggedCard);
+      save();
+    }
+  });
+});
+
+function getColumn(status) {
+  return document.querySelector(`[data-status="${status}"] .cards`);
+}
+
+function save() {
+  const data = {};
+  document.querySelectorAll(".column").forEach(col => {
+    const status = col.dataset.status;
+    data[status] = [...col.querySelectorAll(".card")].map(c => c.textContent);
+  });
+  localStorage.setItem("trello", JSON.stringify(data));
+}
+
+function load() {
+  const data = JSON.parse(localStorage.getItem("trello") || "{}");
+  Object.keys(data).forEach(status =>
+    data[status].forEach(text => addCard(text, status))
+  );
+}
+
+load();
+</script>
+
+</body>
+</html>
