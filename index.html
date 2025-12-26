@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Glassy Trello Organizer</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glassy Organizer</title>
 
 <style>
 :root{
   --bg:#0b0f1a;
   --panel:rgba(255,255,255,0.08);
-  --panel-strong:rgba(255,255,255,0.12);
-  --border:rgba(255,255,255,0.15);
+  --panel-strong:rgba(255,255,255,0.14);
+  --border:rgba(255,255,255,0.18);
   --text:#e6ecff;
   --muted:#9aa4c7;
   --accent:#4da3ff;
@@ -18,18 +18,37 @@
   --blur:14px;
   --radius:14px;
   --radius-sm:10px;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+  --t:0.18s ease;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
 }
+
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text)}
-button,input,textarea{font-family:inherit;color:inherit}
+
+button,input,textarea{
+  font-family:inherit;
+  color:inherit;
+}
 button{cursor:pointer}
 
-.app{height:100%;display:flex;flex-direction:column;padding:12px;gap:12px}
+.app{
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  padding:12px;
+}
 
-/* Header */
-.header{display:flex;align-items:center;gap:12px}
-.header h1{margin:0;font-size:18px}
+.header{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.header h1{
+  margin:0;
+  font-size:18px;
+  font-weight:600;
+}
 .add-tab-btn{
   margin-left:auto;
   padding:8px 14px;
@@ -37,10 +56,9 @@ button{cursor:pointer}
   border-radius:999px;
   background:var(--accent);
   color:#021226;
-  font-weight:600;
+  font-weight:700;
 }
 
-/* Board */
 .board{
   flex:1;
   display:flex;
@@ -49,7 +67,6 @@ button{cursor:pointer}
 }
 .board::-webkit-scrollbar{height:0}
 
-/* Column */
 .column{
   min-width:280px;
   max-width:320px;
@@ -61,7 +78,6 @@ button{cursor:pointer}
   border-radius:var(--radius);
 }
 
-/* Column header */
 .column-header{
   display:flex;
   gap:6px;
@@ -80,7 +96,6 @@ button{cursor:pointer}
   color:var(--muted);
 }
 
-/* Tasks */
 .task-list{
   flex:1;
   padding:10px;
@@ -99,9 +114,21 @@ button{cursor:pointer}
   display:flex;
   flex-direction:column;
   gap:6px;
-  touch-action:none;
+  transition:transform var(--t), box-shadow var(--t), opacity var(--t);
 }
-.task.dragging{opacity:.6}
+.task.dragging{
+  opacity:0.85;
+  transform:scale(1.05);
+  box-shadow:0 16px 40px rgba(0,0,0,.4);
+}
+
+.task-handle{
+  font-size:12px;
+  color:var(--muted);
+  cursor:grab;
+  user-select:none;
+}
+.task-handle:active{cursor:grabbing}
 
 .task-title{
   background:transparent;
@@ -130,9 +157,9 @@ button{cursor:pointer}
   background:var(--accent-soft);
   color:var(--accent);
   font-size:12px;
+  padding:4px;
 }
 
-/* Add task */
 .add-task{
   display:flex;
   gap:6px;
@@ -156,6 +183,12 @@ button{cursor:pointer}
   font-weight:700;
 }
 
+.drop-indicator{
+  height:6px;
+  border-radius:4px;
+  background:var(--accent);
+}
+
 @media(max-width:600px){
   .column{min-width:85vw}
 }
@@ -172,20 +205,19 @@ button{cursor:pointer}
 </div>
 
 <script>
-/* ---------- State ---------- */
-const STORAGE_KEY="trello_glassy_v2";
-let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+/* ---------------- State ---------------- */
+const KEY="glassy_organizer_v3";
+let state=JSON.parse(localStorage.getItem(KEY))||{
   columns:[
     {id:id(),title:"To-Do",tasks:[]},
     {id:id(),title:"Working On",tasks:[]},
     {id:id(),title:"Finished",tasks:[]}
   ]
 };
-
 function id(){return crypto.randomUUID()}
-function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}
+function save(){localStorage.setItem(KEY,JSON.stringify(state))}
 
-/* ---------- Render ---------- */
+/* ---------------- Render ---------------- */
 const board=document.getElementById("board");
 
 function render(){
@@ -202,16 +234,16 @@ function render(){
     title.value=col.title;
     title.oninput=()=>{col.title=title.value;save()};
 
-    const delCol=document.createElement("button");
-    delCol.textContent="✕";
-    delCol.onclick=()=>{
+    const del=document.createElement("button");
+    del.textContent="✕";
+    del.onclick=()=>{
       if(confirm("Delete column?")){
         state.columns=state.columns.filter(c=>c!==col);
         save();render();
       }
     };
 
-    header.append(title,delCol);
+    header.append(title,del);
 
     const list=document.createElement("div");
     list.className="task-list";
@@ -232,19 +264,24 @@ function render(){
       input.value="";
       save();render();
     };
-    add.append(input,plus);
 
+    add.append(input,plus);
     column.append(header,list,add);
     board.appendChild(column);
   });
 }
 render();
 
-/* ---------- Task ---------- */
+/* ---------------- Tasks ---------------- */
 function taskCard(task,col){
   const card=document.createElement("div");
   card.className="task";
   if(task.expanded)card.classList.add("expanded");
+  card.dataset.id=task.id;
+
+  const handle=document.createElement("div");
+  handle.className="task-handle";
+  handle.textContent="⋮⋮ Drag";
 
   const title=document.createElement("input");
   title.className="task-title";
@@ -275,59 +312,69 @@ function taskCard(task,col){
   };
 
   footer.append(toggle,del);
-  card.append(title,notes,footer);
+  card.append(handle,title,notes,footer);
 
-  enableDrag(card,task,col);
+  enableDrag(handle,card,task,col);
   return card;
 }
 
-/* ---------- Drag & Drop (FIXED) ---------- */
-let dragging=null;
+/* ---------------- Drag & Drop ---------------- */
+let drag=null;
+let indicator=document.createElement("div");
+indicator.className="drop-indicator";
 
-function enableDrag(card,task,col){
-  card.addEventListener("pointerdown",e=>{
-    dragging={card,task,col};
+function enableDrag(handle,card,task,col){
+  handle.addEventListener("pointerdown",e=>{
+    drag={card,task,col};
     card.classList.add("dragging");
     card.setPointerCapture(e.pointerId);
   });
 
-  card.addEventListener("pointerup",()=>{
-    if(!dragging)return;
-    dragging.card.classList.remove("dragging");
-    dragging=null;
-    save();render();
-  });
+  handle.addEventListener("pointerup",finishDrag);
+  handle.addEventListener("pointercancel",finishDrag);
+}
+
+function finishDrag(){
+  if(!drag)return;
+  drag.card.classList.remove("dragging");
+  indicator.remove();
+  drag=null;
+  save();render();
 }
 
 function enableDrop(list,col){
   list.addEventListener("pointermove",e=>{
-    if(!dragging)return;
+    if(!drag)return;
     e.preventDefault();
 
-    if(dragging.col!==col){
-      dragging.col.tasks=dragging.col.tasks.filter(t=>t!==dragging.task);
-      col.tasks.push(dragging.task);
-      dragging.col=col;
+    if(drag.col!==col){
+      drag.col.tasks=drag.col.tasks.filter(t=>t!==drag.task);
+      col.tasks.push(drag.task);
+      drag.col=col;
     }
 
-    const items=[...list.children].filter(c=>c!==dragging.card);
+    const items=[...list.children].filter(c=>c!==drag.card && c!==indicator);
     const after=items.find(el=>{
       const r=el.getBoundingClientRect();
       return e.clientY<r.top+r.height/2;
     });
 
-    if(after) list.insertBefore(dragging.card,after);
-    else list.appendChild(dragging.card);
+    if(after) list.insertBefore(indicator,after);
+    else list.appendChild(indicator);
 
-    col.tasks.sort(
-      (a,b)=>[...list.children].indexOf(
-        list.querySelector(`[data-id="${a?.id}"]`)
-      )
-    );
+    list.insertBefore(drag.card,indicator);
+    reorder(col,list);
   });
 }
 
-/* ---------- Add Column ---------- */
+function reorder(col,list){
+  const ids=[...list.children]
+    .filter(c=>c.classList.contains("task"))
+    .map(c=>c.dataset.id);
+  col.tasks.sort((a,b)=>ids.indexOf(a.id)-ids.indexOf(b.id));
+}
+
+/* ---------------- Add Column ---------------- */
 document.querySelector(".add-tab-btn").onclick=()=>{
   const name=prompt("Column name");
   if(!name)return;
