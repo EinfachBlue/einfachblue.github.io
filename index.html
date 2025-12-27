@@ -2,45 +2,51 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GlassBoard - Dark Mode Task Manager</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GlassBoard v2</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
         :root {
+            --bg-gradient: radial-gradient(circle at 10% 20%, rgb(30, 30, 40) 0%, rgb(10, 10, 15) 90%);
             --glass-bg: rgba(255, 255, 255, 0.05);
             --glass-border: 1px solid rgba(255, 255, 255, 0.1);
-            --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
             --text-color: #e0e0e0;
-            --accent-color: #a855f7; /* Purple accent */
+            --accent-color: #a855f7;
+            /* Card Colors */
+            --c-default: rgba(255, 255, 255, 0.08);
+            --c-red: rgba(255, 89, 89, 0.25);
+            --c-blue: rgba(89, 166, 255, 0.25);
+            --c-green: rgba(89, 255, 147, 0.25);
+            --c-orange: rgba(255, 178, 89, 0.25);
+            --c-purple: rgba(189, 89, 255, 0.25);
         }
 
         body {
             margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            /* Deep Dark Gradient Background */
-            background: radial-gradient(circle at 10% 20%, rgb(30, 30, 40) 0%, rgb(10, 10, 15) 90%);
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg-gradient);
             color: var(--text-color);
             height: 100vh;
-            overflow: hidden; /* Horizontal scroll handled by board */
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
 
         /* --- Header --- */
         header {
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.2);
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.3);
             backdrop-filter: blur(10px);
             border-bottom: var(--glass-border);
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
+            z-index: 10;
         }
+        h1 { margin: 0; font-size: 1.2rem; }
+        .reset-btn { font-size: 0.8rem; background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #aaa; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
 
-        h1 { margin: 0; font-size: 1.5rem; letter-spacing: 1px; }
-
-        /* --- Main Board Area --- */
+        /* --- Board Area --- */
         #board {
             flex-grow: 1;
             padding: 20px;
@@ -50,27 +56,23 @@
             display: flex;
             align-items: flex-start;
             gap: 20px;
+            /* Mobile Scroll Snap */
+            scroll-snap-type: x mandatory;
         }
 
-        /* Custom Scrollbar */
-        #board::-webkit-scrollbar { height: 12px; }
-        #board::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
-        #board::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-
-        /* --- Lists (Columns) --- */
+        /* --- Lists --- */
         .list {
             background: var(--glass-bg);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
             border: var(--glass-border);
-            box-shadow: var(--glass-shadow);
             border-radius: 12px;
-            width: 300px;
+            width: 85vw; /* Mobile width */
+            max-width: 300px; /* Desktop width */
             min-width: 300px;
             display: flex;
             flex-direction: column;
-            max-height: 100%;
-            transition: transform 0.2s;
+            max-height: calc(100vh - 100px);
+            scroll-snap-align: center; /* Snap on mobile */
         }
 
         .list-header {
@@ -78,228 +80,363 @@
             font-weight: bold;
             display: flex;
             justify-content: space-between;
-            align-items: center;
             cursor: grab;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
         }
-
-        .delete-list-btn {
-            background: transparent;
-            border: none;
-            color: #ff5f5f;
-            cursor: pointer;
-            font-size: 1.2rem;
-            opacity: 0.5;
-            transition: 0.2s;
-        }
-        .delete-list-btn:hover { opacity: 1; }
 
         .list-cards {
             flex-grow: 1;
-            padding: 0 10px 10px 10px;
+            padding: 10px;
             overflow-y: auto;
-            min-height: 50px; /* Drop zone size */
+            min-height: 50px;
         }
 
-        /* --- Cards (Tasks) --- */
+        /* --- Cards --- */
         .card {
-            background: rgba(255, 255, 255, 0.08);
+            background: var(--c-default);
             margin-bottom: 10px;
             padding: 12px;
             border-radius: 8px;
             border: 1px solid rgba(255,255,255,0.05);
             cursor: pointer;
             white-space: normal;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: all 0.2s;
+            position: relative;
+            transition: transform 0.2s;
+            border-left: 4px solid transparent; /* Color indicator */
         }
-
-        .card:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-
-        .card-actions { opacity: 0; transition: 0.2s; }
-        .card:hover .card-actions { opacity: 1; }
+        .card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.15); }
         
-        .delete-card-btn {
-            color: #ff5f5f;
-            cursor: pointer;
-            margin-left: 8px;
-        }
+        .card-title { font-weight: 500; display: block; margin-bottom: 4px; }
+        .card-notes { font-size: 0.75rem; color: rgba(255,255,255,0.6); display: block; line-height: 1.4; }
 
         /* --- Inputs --- */
-        .add-card-container {
-            padding: 10px;
-            border-top: 1px solid rgba(255,255,255,0.05);
-        }
-
+        .add-card-container { padding: 10px; }
         input[type="text"] {
-            width: 100%;
-            background: rgba(0,0,0,0.2);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: white;
-            padding: 10px;
-            border-radius: 6px;
-            box-sizing: border-box;
-            outline: none;
+            width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
+            color: white; padding: 10px; border-radius: 6px; box-sizing: border-box; outline: none;
         }
 
-        input[type="text"]::placeholder { color: rgba(255,255,255,0.3); }
-        input[type="text"]:focus { border-color: var(--accent-color); }
-
-        /* Add List Button/Form */
-        .add-list-wrapper {
-            min-width: 300px;
-            padding: 15px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-            border: 1px dashed rgba(255,255,255,0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: 0.2s;
+        .add-list-btn {
+            min-width: 300px; height: 50px;
+            background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2);
+            border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: #aaa;
         }
-        .add-list-wrapper:hover { background: rgba(255,255,255,0.1); }
 
-        /* Dragging Classes (SortableJS) */
-        .sortable-ghost { opacity: 0.4; background: var(--accent-color); }
-        .sortable-drag { cursor: grabbing; opacity: 1; background: #2d2d3a; }
+        /* --- Modal (Popup) --- */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 100;
+            justify-content: center; align-items: center;
+        }
+        .modal {
+            background: #1e1e28; width: 90%; max-width: 400px;
+            padding: 20px; border-radius: 12px; border: var(--glass-border);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .modal h2 { margin-top: 0; font-size: 1.1rem; }
+        .modal label { display: block; margin-top: 15px; font-size: 0.8rem; color: #888; margin-bottom: 5px; }
+        .modal textarea {
+            width: 100%; height: 80px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
+            color: white; padding: 10px; border-radius: 6px; resize: none; box-sizing: border-box;
+        }
+        
+        .color-picker { display: flex; gap: 10px; margin-top: 10px; }
+        .color-dot {
+            width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid transparent;
+        }
+        .color-dot.selected { border-color: white; transform: scale(1.1); }
 
+        .modal-actions { margin-top: 20px; display: flex; justify-content: space-between; }
+        .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+        .btn-save { background: var(--accent-color); color: white; }
+        .btn-delete { background: rgba(255, 95, 95, 0.1); color: #ff5f5f; }
+
+        /* Sortable Ghost */
+        .sortable-ghost { opacity: 0.4; }
     </style>
 </head>
 <body>
 
 <header>
-    <h1>GlassBoard</h1>
-    <div style="font-size: 0.9rem; opacity: 0.7;">Drag & Drop Enabled</div>
+    <h1>GlassBoard v2</h1>
+    <button class="reset-btn" onclick="clearData()">Clear All Data</button>
 </header>
 
 <div id="board">
-    <div class="list">
-        <div class="list-header">
-            To Do <button class="delete-list-btn" onclick="deleteList(this)">×</button>
-        </div>
-        <div class="list-cards" id="list-1">
-            <div class="card">
-                <span>Welcome to GlassBoard!</span>
-                <div class="card-actions"><span class="delete-card-btn" onclick="deleteCard(this)">🗑</span></div>
-            </div>
-            <div class="card">
-                <span>Try dragging this card to another list.</span>
-                <div class="card-actions"><span class="delete-card-btn" onclick="deleteCard(this)">🗑</span></div>
-            </div>
-        </div>
-        <div class="add-card-container">
-            <input type="text" placeholder="+ Add a card..." onkeypress="handleCardInput(event, this)">
-        </div>
-    </div>
+    <div class="add-list-btn" onclick="createNewList()">+ Add List</div>
+</div>
 
-    <div class="list">
-        <div class="list-header">
-            In Progress <button class="delete-list-btn" onclick="deleteList(this)">×</button>
+<div class="modal-overlay" id="cardModal" onclick="closeModal(event)">
+    <div class="modal">
+        <h2>Edit Task</h2>
+        <input type="text" id="modalTitle" placeholder="Task Title">
+        
+        <label>Notes</label>
+        <textarea id="modalNotes" placeholder="Add details..."></textarea>
+        
+        <label>Color Code</label>
+        <div class="color-picker" id="colorPicker">
+            <div class="color-dot" style="background: var(--c-default)" data-color="default"></div>
+            <div class="color-dot" style="background: var(--c-red)" data-color="red"></div>
+            <div class="color-dot" style="background: var(--c-blue)" data-color="blue"></div>
+            <div class="color-dot" style="background: var(--c-green)" data-color="green"></div>
+            <div class="color-dot" style="background: var(--c-purple)" data-color="purple"></div>
         </div>
-        <div class="list-cards" id="list-2">
-            <div class="card">
-                <span>Review Code</span>
-                <div class="card-actions"><span class="delete-card-btn" onclick="deleteCard(this)">🗑</span></div>
-            </div>
-        </div>
-        <div class="add-card-container">
-            <input type="text" placeholder="+ Add a card..." onkeypress="handleCardInput(event, this)">
-        </div>
-    </div>
 
-    <div class="add-list-wrapper" id="add-list-btn" onclick="createNewList()">
-        <span style="font-weight: bold;">+ Add another list</span>
+        <div class="modal-actions">
+            <button class="btn btn-delete" onclick="deleteCurrentCard()">Delete</button>
+            <button class="btn btn-save" onclick="saveCardChanges()">Save</button>
+        </div>
     </div>
 </div>
 
 <script>
-    const board = document.getElementById('board');
-    
-    // --- Initialize Drag and Drop (SortableJS) ---
-    
-    // 1. Make Lists Sortable (Horizontal)
-    new Sortable(board, {
-        animation: 150,
-        handle: '.list-header', // Drag via header only
-        draggable: '.list', // Only dragging items with class .list
-        ghostClass: 'sortable-ghost',
-        filter: '.add-list-wrapper' // Don't drag the 'Add List' button
+    // --- State & Storage ---
+    let boardData = [];
+    const boardEl = document.getElementById('board');
+    const addListBtn = document.querySelector('.add-list-btn');
+    let currentCardId = null; // Track which card is being edited
+    let selectedCardColor = 'default';
+
+    // Load on startup
+    window.addEventListener('DOMContentLoaded', () => {
+        loadData();
     });
 
-    // 2. Make Cards Sortable (Vertical, between lists)
-    function initSortableCards(element) {
-        new Sortable(element, {
-            group: 'shared', // Allow dragging between lists
-            animation: 150,
-            ghostClass: 'sortable-ghost'
+    // --- Data Management ---
+
+    function saveData() {
+        // Scrape the DOM to build the data object (Simplest method for Drag/Drop sync)
+        const lists = document.querySelectorAll('.list');
+        const newData = [];
+
+        lists.forEach(list => {
+            const title = list.querySelector('.list-header span').innerText;
+            const cardEls = list.querySelectorAll('.card');
+            const cards = [];
+            
+            cardEls.forEach(c => {
+                cards.push({
+                    id: c.dataset.id,
+                    title: c.querySelector('.card-title').innerText,
+                    notes: c.dataset.notes || "",
+                    color: c.dataset.color || "default"
+                });
+            });
+
+            newData.push({ title, cards });
         });
+
+        boardData = newData;
+        localStorage.setItem('glassboardData', JSON.stringify(boardData));
     }
 
-    // Initialize existing lists
-    document.querySelectorAll('.list-cards').forEach(initSortableCards);
+    function loadData() {
+        const data = localStorage.getItem('glassboardData');
+        if (data) {
+            boardData = JSON.parse(data);
+            renderBoard();
+        } else {
+            // Default Demo Data
+            boardData = [
+                { 
+                    title: "Todo", 
+                    cards: [
+                        { id: Date.now(), title: "Click me to edit!", notes: "I have hidden details.", color: "blue" }
+                    ] 
+                }
+            ];
+            renderBoard();
+        }
+    }
 
-    // --- Core Logic ---
+    function clearData() {
+        if(confirm("Delete all lists and tasks?")) {
+            localStorage.removeItem('glassboardData');
+            location.reload();
+        }
+    }
 
-    // Create New List
-    function createNewList() {
-        const title = prompt("Enter list title:");
-        if (!title) return;
+    // --- Rendering ---
 
-        const wrapper = document.createElement('div');
-        wrapper.className = 'list';
-        wrapper.innerHTML = `
+    function renderBoard() {
+        // Remove existing lists (but keep the Add Button)
+        document.querySelectorAll('.list').forEach(e => e.remove());
+
+        boardData.forEach(listData => {
+            createListDOM(listData.title, listData.cards);
+        });
+        
+        initSortables();
+    }
+
+    function createListDOM(title, cards = []) {
+        const list = document.createElement('div');
+        list.className = 'list';
+        list.innerHTML = `
             <div class="list-header">
-                ${title} <button class="delete-list-btn" onclick="deleteList(this)">×</button>
+                <span>${title}</span>
+                <span style="cursor:pointer; opacity:0.5;" onclick="deleteList(this)">×</span>
             </div>
             <div class="list-cards"></div>
             <div class="add-card-container">
-                <input type="text" placeholder="+ Add a card..." onkeypress="handleCardInput(event, this)">
+                <input type="text" placeholder="+ Add card" onkeypress="handleInput(event, this)">
             </div>
         `;
 
-        // Insert before the "Add List" button
-        const addBtn = document.getElementById('add-list-btn');
-        board.insertBefore(wrapper, addBtn);
+        const cardContainer = list.querySelector('.list-cards');
+        cards.forEach(cardData => {
+            addCardDOM(cardContainer, cardData);
+        });
 
-        // Initialize drag & drop for the new list
-        initSortableCards(wrapper.querySelector('.list-cards'));
+        boardEl.insertBefore(list, addListBtn);
     }
 
-    // Add New Card (Event Handler)
-    function handleCardInput(event, inputElement) {
-        if (event.key === 'Enter' && inputElement.value.trim() !== "") {
-            addCard(inputElement.closest('.list').querySelector('.list-cards'), inputElement.value);
-            inputElement.value = ""; // Clear input
-        }
-    }
-
-    // Add Card Logic
-    function addCard(container, text) {
+    function addCardDOM(container, data) {
         const card = document.createElement('div');
         card.className = 'card';
+        card.dataset.id = data.id || Date.now();
+        card.dataset.notes = data.notes || "";
+        card.dataset.color = data.color || "default";
+        
+        applyCardColor(card, data.color);
+
         card.innerHTML = `
-            <span>${text}</span>
-            <div class="card-actions"><span class="delete-card-btn" onclick="deleteCard(this)">🗑</span></div>
+            <span class="card-title">${data.title}</span>
+            <span class="card-notes">${data.notes}</span>
         `;
+        
+        card.onclick = () => openModal(card);
         container.appendChild(card);
     }
 
-    // Delete List
-    function deleteList(btn) {
-        if(confirm("Are you sure you want to delete this list?")) {
-            btn.closest('.list').remove();
+    function applyCardColor(card, colorName) {
+        // Map names to CSS variables
+        const colors = {
+            'default': 'var(--c-default)',
+            'red': 'var(--c-red)',
+            'blue': 'var(--c-blue)',
+            'green': 'var(--c-green)',
+            'purple': 'var(--c-purple)'
+        };
+        const bg = colors[colorName] || colors['default'];
+        card.style.background = bg;
+        // Add a colored border left for extra flair
+        card.style.borderLeftColor = colorName === 'default' ? 'transparent' : 'rgba(255,255,255,0.5)';
+    }
+
+    // --- Interactions ---
+
+    function createNewList() {
+        const title = prompt("List Title:");
+        if (title) {
+            createListDOM(title);
+            saveData();
+            initSortables();
         }
     }
 
-    // Delete Card
-    function deleteCard(btn) {
-        btn.closest('.card').remove();
+    function handleInput(e, input) {
+        if (e.key === 'Enter' && input.value.trim()) {
+            addCardDOM(input.closest('.list').querySelector('.list-cards'), {
+                id: Date.now(),
+                title: input.value,
+                notes: "",
+                color: "default"
+            });
+            input.value = "";
+            saveData();
+        }
+    }
+
+    function deleteList(btn) {
+        if(confirm("Delete list?")) {
+            btn.closest('.list').remove();
+            saveData();
+        }
+    }
+
+    // --- Drag & Drop ---
+    function initSortables() {
+        // Board Sorting (Lists)
+        new Sortable(boardEl, {
+            group: 'board',
+            draggable: '.list',
+            handle: '.list-header',
+            animation: 150,
+            onEnd: saveData // Save after drag
+        });
+
+        // List Sorting (Cards)
+        document.querySelectorAll('.list-cards').forEach(el => {
+            new Sortable(el, {
+                group: 'cards',
+                animation: 150,
+                onEnd: saveData // Save after drag
+            });
+        });
+    }
+
+    // --- Modal Logic ---
+    const modal = document.getElementById('cardModal');
+    const mTitle = document.getElementById('modalTitle');
+    const mNotes = document.getElementById('modalNotes');
+    const colorDots = document.querySelectorAll('.color-dot');
+    let activeCardElement = null;
+
+    function openModal(card) {
+        activeCardElement = card;
+        mTitle.value = card.querySelector('.card-title').innerText;
+        mNotes.value = card.dataset.notes;
+        
+        // Set Color Selection
+        selectedCardColor = card.dataset.color || 'default';
+        updateColorPickerUI();
+
+        modal.style.display = 'flex';
+    }
+
+    function closeModal(e) {
+        if (e.target === modal) modal.style.display = 'none';
+    }
+
+    // Color Picker Click
+    colorDots.forEach(dot => {
+        dot.addEventListener('click', () => {
+            selectedCardColor = dot.dataset.color;
+            updateColorPickerUI();
+        });
+    });
+
+    function updateColorPickerUI() {
+        colorDots.forEach(d => {
+            if(d.dataset.color === selectedCardColor) d.classList.add('selected');
+            else d.classList.remove('selected');
+        });
+    }
+
+    function saveCardChanges() {
+        if (!activeCardElement) return;
+        
+        // Update DOM
+        activeCardElement.querySelector('.card-title').innerText = mTitle.value;
+        activeCardElement.querySelector('.card-notes').innerText = mNotes.value;
+        activeCardElement.dataset.notes = mNotes.value;
+        activeCardElement.dataset.color = selectedCardColor;
+        
+        applyCardColor(activeCardElement, selectedCardColor);
+
+        modal.style.display = 'none';
+        saveData();
+    }
+
+    function deleteCurrentCard() {
+        if(confirm("Delete this task?")) {
+            activeCardElement.remove();
+            modal.style.display = 'none';
+            saveData();
+        }
     }
 
 </script>
