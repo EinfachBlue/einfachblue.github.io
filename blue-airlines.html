@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Blue Airlines - Flight Log</title>
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        glass: {
+                            base: 'rgba(20, 20, 20, 0.65)',
+                            border: 'rgba(255, 255, 255, 0.12)',
+                        },
+                        cyan: { 400: '#22d3ee', 500: '#06b6d4' }
+                    },
+                    backdropBlur: {
+                        'xs': '2px',
+                    },
+                    boxShadow: {
+                        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
+                    },
+                    fontFamily: {
+                        sans: ['-apple-system', 'BlinkMacSystemFont', 'Inter', 'Segoe UI', 'Roboto', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+    <style>
+        body, html { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #000; color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        
+        /* Glass Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
+
+        /* Map Container */
+        #map-container { height: 100%; width: 100%; z-index: 0; position: absolute; top: 0; left: 0; background: #050505; }
+        .leaflet-container { background: #050505; }
+        
+        /* MODERN DARK MAP FILTER 
+           This turns a specific light map into a "Midnight Blue" theme.
+           Invert: Turns white land to black.
+           Hue-Rotate: Shifts the inverted orange seas back to deep blue.
+        */
+        .midnight-map-tiles {
+            filter: invert(100%) hue-rotate(190deg) brightness(90%) contrast(85%) saturate(120%);
+        }
+
+        /* UI Utilities (Apple Liquid Glass) */
+        .liquid-glass {
+            background: rgba(30, 30, 30, 0.5); /* Semi-transparent grey/black */
+            backdrop-filter: blur(25px) saturate(180%);
+            -webkit-backdrop-filter: blur(25px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Marker & Tooltip Styles */
+        .seq-marker {
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-weight: 600;
+            font-size: 11px;
+            border: 1px solid rgba(255,255,255,0.3);
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        }
+
+        /* Permanent Line Label (Time/Plane) */
+        .glass-tooltip {
+            background: rgba(0, 0, 0, 0.6) !important;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            color: #e2e8f0 !important;
+            font-family: -apple-system, system-ui;
+            font-size: 10px !important;
+            font-weight: 500;
+            border-radius: 6px !important;
+            padding: 2px 6px !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+            white-space: nowrap;
+        }
+        .leaflet-tooltip-left:before, .leaflet-tooltip-right:before, 
+        .leaflet-tooltip-bottom:before, .leaflet-tooltip-top:before {
+            display: none; /* Hide arrow */
+        }
+
+        /* Note Bubble */
+        .note-tooltip {
+            background: rgba(34, 211, 238, 0.15) !important;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(34, 211, 238, 0.4) !important;
+            color: #22d3ee !important;
+            font-size: 11px !important;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-radius: 8px !important;
+            box-shadow: 0 0 15px rgba(34, 211, 238, 0.2) !important;
+        }
+
+        /* Plane Icon Wrapper - NO CSS TRANSITION for rotation to prevent lag */
+        .plane-wrapper {
+            /* Transform is handled by JS for instant updates */
+            will-change: transform;
+        }
+    </style>
+</head>
+<body>
+    <div id="root" class="h-full w-full relative"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+        // --- Data & Constants ---
+        // Same extensive aircraft list as before
+        const AIRCRAFT_DB = [
+            { id: "a320", name: "Airbus A320neo", speed: 445 },
+            { id: "a321lr", name: "Airbus A321LR", speed: 450 },
+            { id: "a330", name: "Airbus A330-300", speed: 470 },
+            { id: "beluga", name: "Airbus Beluga XL", speed: 430 },
+            { id: "a400m", name: "Airbus A400M", speed: 400 },
+            { id: "b738", name: "Boeing 737 MAX 8", speed: 453 },
+            { id: "b748", name: "Boeing 747-8i", speed: 493 },
+            { id: "b78x", name: "Boeing 787-10", speed: 488 },
+            { id: "c17", name: "C-17 Globemaster", speed: 450 },
+            { id: "cj4", name: "Citation CJ4", speed: 451 },
+            { id: "long", name: "Cessna Longitude", speed: 476 },
+            { id: "sf50", name: "Cirrus Vision Jet", speed: 300 },
+            { id: "pc24", name: "Pilatus PC-24", speed: 440 },
+            { id: "hjet", name: "HondaJet", speed: 420 },
+            { id: "tbm930", name: "TBM 930", speed: 330 },
+            { id: "king350", name: "King Air 350i", speed: 312 },
+            { id: "pc12", name: "Pilatus PC-12", speed: 280 },
+            { id: "c208", name: "Cessna Caravan", speed: 185 },
+            { id: "dhc6", name: "Twin Otter", speed: 160 },
+            { id: "cl415", name: "CL-415", speed: 180 },
+            { id: "c172", name: "Cessna 172", speed: 124 },
+            { id: "c152", name: "Cessna 152", speed: 107 },
+            { id: "g36", name: "Bonanza G36", speed: 176 },
+            { id: "da62", name: "Diamond DA62", speed: 171 },
+            { id: "da40", name: "Diamond DA40", speed: 154 },
+            { id: "sr22", name: "Cirrus SR22", speed: 183 },
+            { id: "cub", name: "XCub", speed: 126 },
+            { id: "icon", name: "ICON A5", speed: 85 },
+            { id: "fa18", name: "F/A-18E", speed: 1000 },
+            { id: "a10", name: "A-10 Warthog", speed: 300 },
+            { id: "darkstar", name: "Darkstar", speed: 3500 },
+            { id: "h125", name: "H125", speed: 140 },
+            { id: "ch47", name: "Chinook", speed: 160 },
+            { id: "cabri", name: "Guimbal Cabri", speed: 90 },
+            { id: "joby", name: "Joby S4", speed: 175 },
+            { id: "volo", name: "Volocopter", speed: 60 }
+        ].sort((a,b) => a.name.localeCompare(b.name));
+
+        const generateUUID = () => crypto.randomUUID().slice(0, 8);
+        const formatDuration = (mins) => {
+            if (!mins) return "00h 00m";
+            const h = Math.floor(mins / 60);
+            const m = Math.round(mins % 60);
+            return `${h}h ${m < 10 ? '0' + m : m}m`;
+        };
+
+        const getDistanceNM = (lat1, lon1, lat2, lon2) => {
+            const R = 3440.065;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        };
+
+        const interpolatePos = (start, end, pct) => ({
+            lat: start.lat + (end.lat - start.lat) * pct,
+            lon: start.lon + (end.lon - start.lon) * pct
+        });
+
+        const getBearing = (startLat, startLon, endLat, endLon) => {
+            const y = Math.sin(endLon - startLon) * Math.cos(endLat);
+            const x = Math.cos(startLat) * Math.sin(endLat) -
+                      Math.sin(startLat) * Math.cos(endLat) * Math.cos(endLon - startLon);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        };
+
+        // --- Components ---
+
+        const GlassButton = ({ children, onClick, active, danger, className }) => {
+            let base = "relative px-4 py-2 rounded-xl font-medium text-sm transition-all duration-300 border flex items-center justify-center gap-2 ";
+            
+            if (danger) {
+                base += "bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20";
+            } else if (active) {
+                base += "bg-cyan-500/20 border-cyan-400/50 text-cyan-50 shadow-[0_0_15px_rgba(34,211,238,0.3)]";
+            } else {
+                base += "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20 hover:text-white";
+            }
+
+            return (
+                <button onClick={onClick} className={`${base} ${className}`}>
+                    {children}
+                </button>
+            );
+        };
+
+        const LeafletMap = ({ stops, legs, isSidebarOpen, onMapReady }) => {
+            const mapRef = useRef(null);
+            const mapInstance = useRef(null);
+            const layerRef = useRef({ markers: [], polylines: [], notes: [] });
+
+            useEffect(() => {
+                if (!mapInstance.current) {
+                    mapInstance.current = L.map(mapRef.current, {
+                        zoomControl: false,
+                        attributionControl: false
+                    }).setView([30, -10], 3);
+
+                    // CartoDB Voyager (Light) -> Applied "Midnight Map" Filter
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
+                        maxZoom: 19,
+                        subdomains: 'abcd',
+                        className: 'midnight-map-tiles' 
+                    }).addTo(mapInstance.current);
+                    
+                    L.control.zoom({ position: 'bottomright' }).addTo(mapInstance.current);
+                    onMapReady(mapInstance.current);
+                }
+
+                // Smooth resize
+                setTimeout(() => mapInstance.current.invalidateSize(), 300);
+            }, [isSidebarOpen]);
+
+            useEffect(() => {
+                const map = mapInstance.current;
+                if (!map) return;
+
+                // Clear Layers
+                layerRef.current.markers.forEach(l => map.removeLayer(l));
+                layerRef.current.polylines.forEach(l => map.removeLayer(l));
+                layerRef.current.notes.forEach(l => map.removeLayer(l));
+                
+                layerRef.current.markers = [];
+                layerRef.current.polylines = [];
+                layerRef.current.notes = [];
+
+                // 1. Draw Legs with PERMANENT Labels
+                legs.forEach(leg => {
+                    const from = stops.find(s => s.id === leg.fromId);
+                    const to = stops.find(s => s.id === leg.toId);
+                    if (!from || !to) return;
+
+                    const ac = AIRCRAFT_DB.find(a => a.id === leg.aircraftId);
+                    const timeStr = formatDuration(leg.userTime || leg.computedTime);
+                    const labelText = `${timeStr} • ${ac ? ac.name : 'Unknown'}`;
+
+                    const line = L.polyline([[from.lat, from.lon], [to.lat, to.lon]], {
+                        color: '#22d3ee',
+                        weight: 2,
+                        opacity: 0.5,
+                        dashArray: '6, 8'
+                    })
+                    .addTo(map);
+
+                    // Attach persistent tooltip to the center of the line
+                    line.bindTooltip(labelText, { 
+                        permanent: true, 
+                        direction: 'center', 
+                        className: 'glass-tooltip',
+                        interactive: false
+                    }).openTooltip();
+
+                    layerRef.current.polylines.push(line);
+                });
+
+                // 2. Draw Stops & Notes
+                stops.forEach((stop, idx) => {
+                    const isLast = idx === stops.length - 1;
+                    
+                    // Main Dot
+                    const icon = L.divIcon({
+                        className: 'custom-icon',
+                        html: `<div class="seq-marker transition-transform hover:scale-110">${idx + 1}</div>`,
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    });
+                    
+                    const m = L.marker([stop.lat, stop.lon], { icon })
+                        .bindPopup(`<div class="text-black font-bold font-sans p-1">${stop.name}</div>`)
+                        .addTo(map);
+                    
+                    layerRef.current.markers.push(m);
+
+                    // Note Bubble (If exists) - Displays ABOVE the point permanently
+                    if (stop.note && stop.note.trim().length > 0) {
+                        const noteMarker = L.marker([stop.lat, stop.lon], { 
+                            icon: L.divIcon({ className: 'hidden' }), // Invisible anchor
+                            zIndexOffset: 500
+                        }).addTo(map);
+                        
+                        noteMarker.bindTooltip(stop.note, {
+                            permanent: true,
+                            direction: 'top',
+                            offset: [0, -22],
+                            className: 'note-tooltip'
+                        }).openTooltip();
+
+                        layerRef.current.notes.push(noteMarker);
+                    }
+
+                    // Parked Plane Icon (Last Stop)
+                    if (isLast && stops.length > 0) {
+                        const planeIcon = L.divIcon({
+                            html: `<i class="ri-plane-fill text-cyan-400 text-3xl drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]" style="display:block; transform: rotate(-45deg);"></i>`,
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 15]
+                        });
+                        const planeMarker = L.marker([stop.lat, stop.lon], { icon: planeIcon, zIndexOffset: 1000 }).addTo(map);
+                        layerRef.current.markers.push(planeMarker);
+                    }
+                });
+
+            }, [stops, legs]);
+
+            return <div id="map-container" ref={mapRef}></div>;
+        };
+
+        const FlightPlayer = ({ legs, stops, mapInstance }) => {
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [progress, setProgress] = useState(0); 
+            const [speed, setSpeed] = useState(50);
+            const requestRef = useRef();
+            const previousTimeRef = useRef();
+            const playerMarkerRef = useRef(null);
+
+            const totalDurationMins = useMemo(() => legs.reduce((acc, l) => acc + (l.userTime || l.computedTime || 0), 0), [legs]);
+
+            // Initialize Player Marker
+            useEffect(() => {
+                if (!mapInstance || legs.length === 0) return;
+
+                const icon = L.divIcon({
+                    className: 'plane-player-icon',
+                    // Note: Removed 'transition' from style to fix rotation lag
+                    html: `<div id="replay-plane" class="plane-wrapper"><i class="ri-plane-fill text-yellow-400 text-4xl drop-shadow-[0_0_15px_rgba(250,204,21,0.6)]"></i></div>`,
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20]
+                });
+
+                const startStop = stops.find(s => s.id === legs[0].fromId);
+                playerMarkerRef.current = L.marker([startStop.lat, startStop.lon], { icon, zIndexOffset: 2000 }).addTo(mapInstance);
+
+                return () => {
+                    if (playerMarkerRef.current) mapInstance.removeLayer(playerMarkerRef.current);
+                };
+            }, [mapInstance, legs]);
+
+            // Animation Loop
+            const animate = useCallback((time) => {
+                if (previousTimeRef.current != undefined) {
+                    const deltaTime = time - previousTimeRef.current;
+                    const deltaFlightMins = (deltaTime / 1000) * (speed / 60); 
+                    
+                    setProgress(prev => {
+                        const newProg = prev + (deltaFlightMins / totalDurationMins);
+                        if (newProg >= 1) {
+                            setIsPlaying(false);
+                            return 1;
+                        }
+                        return newProg;
+                    });
+                }
+                previousTimeRef.current = time;
+                if (isPlaying) requestRef.current = requestAnimationFrame(animate);
+            }, [isPlaying, speed, totalDurationMins]);
+
+            useEffect(() => {
+                if (isPlaying) {
+                    previousTimeRef.current = undefined;
+                    requestRef.current = requestAnimationFrame(animate);
+                } else {
+                    cancelAnimationFrame(requestRef.current);
+                }
+                return () => cancelAnimationFrame(requestRef.current);
+            }, [isPlaying, animate]);
+
+            // Position & Rotation Update
+            useEffect(() => {
+                if (!playerMarkerRef.current || legs.length === 0) return;
+
+                const currentFlightMin = progress * totalDurationMins;
+                let accumulatedMins = 0;
+                let activeLeg = null;
+                let legProgress = 0;
+
+                for (let leg of legs) {
+                    const duration = leg.userTime || leg.computedTime;
+                    if (currentFlightMin >= accumulatedMins && currentFlightMin <= accumulatedMins + duration) {
+                        activeLeg = leg;
+                        legProgress = (currentFlightMin - accumulatedMins) / duration;
+                        break;
+                    }
+                    accumulatedMins += duration;
+                }
+
+                if (activeLeg) {
+                    const from = stops.find(s => s.id === activeLeg.fromId);
+                    const to = stops.find(s => s.id === activeLeg.toId);
+                    
+                    // 1. Update Position
+                    const pos = interpolatePos(from, to, legProgress);
+                    playerMarkerRef.current.setLatLng([pos.lat, pos.lon]);
+                    
+                    // 2. Update Rotation (Instant, no CSS drag)
+                    const bearing = getBearing(from.lat * Math.PI/180, from.lon * Math.PI/180, to.lat * Math.PI/180, to.lon * Math.PI/180);
+                    const planeEl = document.getElementById('replay-plane');
+                    if (planeEl) {
+                        planeEl.style.transform = `rotate(${bearing}deg)`;
+                    }
+
+                    if (isPlaying) mapInstance.panTo([pos.lat, pos.lon], { animate: false });
+                }
+            }, [progress, legs, stops, totalDurationMins, isPlaying]);
+
+            if (legs.length === 0) return null;
+
+            return (
+                <div className="liquid-glass absolute bottom-6 right-6 left-6 md:left-auto md:w-96 rounded-3xl p-5 z-[1000] flex flex-col gap-4 animate-fade-in">
+                    <div className="flex justify-between items-center text-cyan-400 text-[10px] uppercase tracking-widest font-bold">
+                        <span>Replay Flight</span>
+                        <span>{Math.round(progress * 100)}%</span>
+                    </div>
+                    
+                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden cursor-pointer" onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const pct = (e.clientX - rect.left) / rect.width;
+                        setProgress(Math.max(0, Math.min(1, pct)));
+                    }}>
+                        <div className="h-full bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.5)]" style={{ width: `${progress * 100}%` }}></div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4">
+                        <button 
+                            onClick={() => setIsPlaying(!isPlaying)}
+                            className="w-12 h-12 rounded-full flex items-center justify-center bg-cyan-400 text-black hover:bg-cyan-300 hover:scale-105 transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)]"
+                        >
+                            <i className={`ri-${isPlaying ? 'pause' : 'play'}-fill text-xl`}></i>
+                        </button>
+                        
+                        <div className="flex flex-col flex-1">
+                            <label className="text-[10px] text-gray-400 mb-1">Speed: {speed}x</label>
+                            <input 
+                                type="range" min="10" max="500" step="10" 
+                                value={speed} 
+                                onChange={(e) => setSpeed(Number(e.target.value))}
+                                className="w-full accent-cyan-400 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                            />
+                        </div>
+
+                        <button onClick={() => setProgress(0)} className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+                            <i className="ri-restart-line text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [stops, setStops] = useState([]);
+            const [searchTerm, setSearchTerm] = useState("");
+            const [searchResults, setSearchResults] = useState([]);
+            const [isSearching, setIsSearching] = useState(false);
+            const [sidebarOpen, setSidebarOpen] = useState(true);
+            const [defaultAircraft, setDefaultAircraft] = useState("a320");
+            const [mapInstance, setMapInstance] = useState(null);
+
+            useEffect(() => {
+                const saved = localStorage.getItem('blue_airlines_stops');
+                if (saved) setStops(JSON.parse(saved));
+            }, []);
+
+            useEffect(() => localStorage.setItem('blue_airlines_stops', JSON.stringify(stops)), [stops]);
+
+            useEffect(() => {
+                if (searchTerm.length < 3) { setSearchResults([]); return; }
+                const t = setTimeout(async () => {
+                    setIsSearching(true);
+                    try {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerm)}&limit=5`);
+                        setSearchResults(await res.json());
+                    } catch (e) {}
+                    setIsSearching(false);
+                }, 500);
+                return () => clearTimeout(t);
+            }, [searchTerm]);
+
+            const legs = useMemo(() => {
+                const arr = [];
+                for (let i = 0; i < stops.length - 1; i++) {
+                    const from = stops[i], to = stops[i+1];
+                    const dist = getDistanceNM(from.lat, from.lon, to.lat, to.lon);
+                    const config = to.legData || { aircraftId: defaultAircraft };
+                    const ac = AIRCRAFT_DB.find(a => a.id === config.aircraftId) || AIRCRAFT_DB[0];
+                    const time = (dist / ac.speed * 60) + 20; 
+                    arr.push({ 
+                        id: `leg_${i}`, fromId: from.id, toId: to.id, 
+                        distance: dist, computedTime: time, 
+                        userTime: config.userTime, aircraftId: config.aircraftId 
+                    });
+                }
+                return arr;
+            }, [stops, defaultAircraft]);
+
+            const addStop = (item) => {
+                const name = item.display_name.split(',')[0];
+                const newStop = {
+                    id: generateUUID(), name, lat: parseFloat(item.lat), lon: parseFloat(item.lon),
+                    legData: { aircraftId: defaultAircraft },
+                    note: "" // Note field init
+                };
+                setStops([...stops, newStop]);
+                setSearchTerm(""); setSearchResults([]);
+                if (window.innerWidth < 768) setSidebarOpen(false);
+            };
+
+            const updateStopNote = (id, note) => {
+                setStops(stops.map(s => s.id === id ? { ...s, note } : s));
+            };
+
+            const updateLeg = (idx, key, val) => {
+                const arr = [...stops];
+                arr[idx+1].legData = { ...arr[idx+1].legData, [key]: val };
+                setStops(arr);
+            };
+
+            const removeStop = (id) => setStops(stops.filter(s => s.id !== id));
+
+            return (
+                <div className="h-full w-full relative overflow-hidden font-sans text-slate-200">
+                    
+                    <LeafletMap stops={stops} legs={legs} isSidebarOpen={sidebarOpen} onMapReady={setMapInstance} />
+                    <FlightPlayer legs={legs} stops={stops} mapInstance={mapInstance} />
+
+                    {/* Mobile Toggle */}
+                    {!sidebarOpen && (
+                        <button onClick={() => setSidebarOpen(true)} className="absolute top-4 left-4 z-50 w-12 h-12 rounded-full liquid-glass flex items-center justify-center text-cyan-400 hover:scale-110 transition-transform">
+                            <i className="ri-menu-4-line text-xl"></i>
+                        </button>
+                    )}
+
+                    {/* Glass Sidebar */}
+                    <div className={`
+                        absolute top-0 bottom-0 left-0 z-[900]
+                        transition-transform duration-500 cubic-bezier(0.19, 1, 0.22, 1)
+                        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+                        w-full md:w-[450px] flex flex-col pointer-events-none
+                    `}>
+                        <div className="w-full h-full flex flex-col overflow-hidden pointer-events-auto relative
+                             bg-black/60 backdrop-blur-2xl border-r border-white/10 shadow-2xl">
+                            
+                            {/* Header */}
+                            <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+                                <div>
+                                    <h1 className="font-bold text-xl tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+                                        BLUE AIRLINES
+                                    </h1>
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-widest font-medium mt-1">Flight Operations</p>
+                                </div>
+                                <button onClick={() => setSidebarOpen(false)} className="md:hidden text-white/50 hover:text-white">
+                                    <i className="ri-close-circle-line text-2xl"></i>
+                                </button>
+                            </div>
+
+                            {/* Search & Config */}
+                            <div className="p-6 space-y-5">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-400 text-xs uppercase tracking-wider font-semibold">Default Aircraft</span>
+                                    <select 
+                                        value={defaultAircraft}
+                                        onChange={(e) => setDefaultAircraft(e.target.value)}
+                                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-cyan-400 outline-none focus:border-cyan-400/50 text-xs font-medium"
+                                    >
+                                        {AIRCRAFT_DB.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                    </select>
+                                </div>
+
+                                <div className="relative group z-50">
+                                    <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                                        <i className="ri-search-2-line text-slate-500 group-focus-within:text-cyan-400 transition-colors"></i>
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        className="w-full pl-10 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-sm text-white placeholder-slate-500 outline-none focus:border-cyan-500/50 focus:bg-white/10 transition-all"
+                                        placeholder="Search waypoint (ICAO, City)..."
+                                        value={searchTerm}
+                                        onChange={e => setSearchTerm(e.target.value)}
+                                    />
+                                    {isSearching && <div className="absolute right-4 top-3.5 text-cyan-400 animate-spin"><i className="ri-loader-4-line"></i></div>}
+
+                                    {searchResults.length > 0 && (
+                                        <div className="absolute top-full mt-2 left-0 right-0 liquid-glass rounded-2xl overflow-hidden z-50 max-h-64 overflow-y-auto">
+                                            {searchResults.map((item, i) => (
+                                                <div key={i} onClick={() => addStop(item)} className="p-3 hover:bg-cyan-500/20 cursor-pointer border-b border-white/5 last:border-0 transition-colors">
+                                                    <div className="font-bold text-white text-sm truncate">{item.display_name.split(',')[0]}</div>
+                                                    <div className="text-[10px] text-slate-400 truncate">{item.display_name}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Stop List */}
+                            <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4 scroll-smooth">
+                                {stops.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-48 text-slate-600 border-2 border-dashed border-white/5 rounded-3xl bg-white/[0.02]">
+                                        <i className="ri-map-pin-add-line text-4xl mb-3 opacity-50"></i>
+                                        <p className="text-sm font-medium">Add waypoints to begin</p>
+                                    </div>
+                                ) : (
+                                    stops.map((stop, idx) => {
+                                        const leg = legs.find(l => l.fromId === stop.id);
+                                        return (
+                                            <div key={stop.id} className="relative pl-6">
+                                                {/* Connector */}
+                                                {idx < stops.length - 1 && (
+                                                    <div className="absolute left-[11px] top-6 bottom-[-16px] w-[2px] bg-white/10"></div>
+                                                )}
+
+                                                {/* Node */}
+                                                <div className="absolute left-0 top-1 w-[24px] h-[24px] rounded-full border-2 border-cyan-500/50 bg-black z-10 flex items-center justify-center text-[10px] font-bold text-cyan-400">
+                                                    {idx + 1}
+                                                </div>
+
+                                                {/* Card */}
+                                                <div className="liquid-glass p-4 rounded-2xl transition-all group hover:bg-white/10">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div className="overflow-hidden">
+                                                            <div className="text-base font-bold text-white truncate">{stop.name}</div>
+                                                            <div className="font-mono text-[10px] text-slate-500 mt-0.5">{stop.lat.toFixed(4)}, {stop.lon.toFixed(4)}</div>
+                                                        </div>
+                                                        <button onClick={() => removeStop(stop.id)} className="text-slate-600 hover:text-red-400 transition-colors">
+                                                            <i className="ri-close-line text-lg"></i>
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Note Input */}
+                                                    <div className="mb-3 relative">
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="+ Add map note..." 
+                                                            value={stop.note}
+                                                            onChange={(e) => updateStopNote(stop.id, e.target.value)}
+                                                            className="w-full bg-black/20 text-[11px] text-cyan-200 placeholder-slate-600 border border-white/5 rounded-lg px-2 py-1.5 focus:border-cyan-500/50 outline-none transition-colors"
+                                                        />
+                                                    </div>
+
+                                                    {/* Leg Editor */}
+                                                    {leg && (
+                                                        <div className="mt-3 pt-3 border-t border-white/5">
+                                                            <div className="flex items-center gap-2 mb-3">
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Next Leg</span>
+                                                                <div className="h-px bg-white/10 flex-1"></div>
+                                                                <span className="text-[10px] text-cyan-400 font-mono">{Math.round(leg.distance)} NM</span>
+                                                            </div>
+                                                            
+                                                            <div className="grid grid-cols-2 gap-3">
+                                                                <select 
+                                                                    className="bg-black/40 text-xs text-slate-300 border border-white/10 rounded-lg p-2 outline-none focus:border-cyan-500/50"
+                                                                    value={leg.aircraftId}
+                                                                    onChange={(e) => updateLeg(idx, 'aircraftId', e.target.value)}
+                                                                >
+                                                                    {AIRCRAFT_DB.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                                                </select>
+                                                                <div className="relative">
+                                                                    <input 
+                                                                        type="number" 
+                                                                        placeholder="Auto Time"
+                                                                        className="w-full bg-black/40 text-xs text-slate-300 border border-white/10 rounded-lg p-2 outline-none focus:border-cyan-500/50 pl-2"
+                                                                        value={leg.userTime || ''}
+                                                                        onChange={(e) => updateLeg(idx, 'userTime', e.target.value ? parseInt(e.target.value) : null)}
+                                                                    />
+                                                                    <span className="absolute right-2 top-2 text-[10px] text-slate-500 pointer-events-none">min</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+
+                            {/* Footer */}
+                            <div className="p-4 border-t border-white/5 bg-black/40 backdrop-blur-md">
+                                <GlassButton onClick={() => {
+                                    const blob = new Blob([JSON.stringify(stops)], {type:'application/json'});
+                                    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='flightplan.json'; a.click();
+                                }} className="w-full py-3">
+                                    <i className="ri-download-cloud-2-line"></i> Export Flight Plan
+                                </GlassButton>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
