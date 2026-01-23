@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Splish Meister | Schluck für Schluck Legende</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Inter:wght@300;400;600&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+    <style>
+        /* --- CORE VARIABLES --- */
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-card: rgba(30, 30, 30, 0.6);
+            --bg-glass: rgba(255, 255, 255, 0.05);
+            --text-main: #ffffff;
+            --text-muted: #b0b0b0;
+            --gold: #FFD700;
+            
+            /* Flavor Palettes */
+            --classic-glow: #FF8C00;
+            --blue-glow: #00f2ff;
+            --cherry-glow: #ff0055;
+        }
+
+        /* --- RESET & BASE --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        html { scroll-behavior: smooth; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Background Noise/Gradient Animation */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 15% 50%, rgba(255, 69, 0, 0.05), transparent 25%),
+                        radial-gradient(circle at 85% 30%, rgba(0, 242, 255, 0.05), transparent 25%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        h1, h2, h3 { font-family: 'Montserrat', sans-serif; text-transform: uppercase; }
+        a { text-decoration: none; color: inherit; transition: 0.3s; }
+        button { cursor: pointer; border: none; font-family: 'Montserrat', sans-serif; }
+
+        /* --- NAVIGATION --- */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 5%;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+            background: linear-gradient(to right, #fff, #888);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-items { display: flex; gap: 40px; list-style: none; }
+        .nav-items a { font-weight: 600; font-size: 0.9rem; letter-spacing: 1px; color: var(--text-muted); }
+        .nav-items a:hover { color: #fff; }
+
+        .cart-icon { position: relative; font-size: 1.2rem; }
+        .cart-count {
+            position: absolute; top: -8px; right: -8px;
+            background: #fff; color: #000;
+            font-size: 0.7rem; font-weight: bold;
+            width: 18px; height: 18px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* --- HERO --- */
+        #hero {
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 0 20px;
+            position: relative;
+        }
+
+        #hero h1 {
+            font-size: clamp(3rem, 10vw, 6rem);
+            line-height: 0.9;
+            font-weight: 900;
+            margin-bottom: 20px;
+            background: linear-gradient(180deg, #fff 0%, #666 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 20px rgba(255,255,255,0.1));
+        }
+
+        .slogan {
+            font-size: 1.2rem;
+            letter-spacing: 4px;
+            color: var(--text-muted);
+            margin-bottom: 50px;
+            text-transform: uppercase;
+        }
+
+        .scroll-indicator {
+            position: absolute; bottom: 40px;
+            animation: bounce 2s infinite; opacity: 0.5;
+        }
+
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(10px); } }
+
+        /* --- FLAVOUR GRID --- */
+        #products {
+            padding: 100px 5%;
+        }
+
+        .section-header {
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 80px;
+            letter-spacing: -1px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 60px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 40px 30px;
+            position: relative;
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            overflow: hidden;
+        }
+
+        /* FAKE SCARCITY BADGE */
+        .scarcity-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid #ff4444;
+            color: #ffaaaa;
+            font-size: 0.7rem;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            z-index: 5;
+            animation: pulse-red 2s infinite;
+        }
+        
+        .scarcity-badge::before {
+            content: '🔥';
+        }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
+        }
+
+        /* Glass Shine Effect */
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%; width: 50%; height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent);
+            transform: skewX(-25deg);
+            transition: 0.5s;
+        }
+        .card:hover::before { left: 150%; }
+
+        .image-slot {
+            width: 100%;
+            max-width: 250px;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .product-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            filter: drop-shadow(0 15px 30px rgba(0,0,0,0.4));
+        }
+
+        .card:hover .product-img {
+            transform: scale(1.1) translateY(-10px);
+        }
+
+        .card h3 { font-size: 2rem; margin-bottom: 10px; z-index: 2; }
+        .card p { color: var(--text-muted); text-align: center; font-size: 0.9rem; z-index: 2; }
+
+        .btn-view {
+            margin-top: 25px;
+            padding: 12px 30px;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: 0.3s;
+            z-index: 2;
+        }
+
+        /* Theme Specifics */
+        .card.classic:hover { border-color: var(--classic-glow); box-shadow: 0 0 50px rgba(255, 140, 0, 0.2); }
+        .card.classic:hover .btn-view { background: var(--classic-glow); border-color: var(--classic-glow); color: #000; }
+        .card.classic h3 { color: var(--classic-glow); }
+
+        .card.blue:hover { border-color: var(--blue-glow); box-shadow: 0 0 50px rgba(0, 242, 255, 0.2); }
+        .card.blue:hover .btn-view { background: var(--blue-glow); border-color: var(--blue-glow); color: #000; }
+        .card.blue h3 { color: var(--blue-glow); }
+
+        .card.cherry:hover { border-color: var(--cherry-glow); box-shadow: 0 0 50px rgba(255, 0, 85, 0.2); }
+        .card.cherry:hover .btn-view { background: var(--cherry-glow); border-color: var(--cherry-glow); color: #fff; }
+        .card.cherry h3 { color: var(--cherry-glow); }
+
+        /* --- FAKE AWARDS SECTION --- */
+        #awards {
+            padding: 80px 5%;
+            background: linear-gradient(180deg, #0a0a0a 0%, #1a1a10 50%, #0a0a0a 100%);
+            text-align: center;
+        }
+
+        #awards h2 {
+            font-family: 'Playfair Display', serif;
+            color: var(--gold);
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+        
+        .award-subtitle {
+            color: var(--text-muted);
+            margin-bottom: 60px;
+            font-style: italic;
+        }
+
+        .awards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .award-card {
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            padding: 40px 20px;
+            border-radius: 5px;
+            background: rgba(0,0,0,0.4);
+            transition: 0.3s;
+        }
+        
+        .award-card:hover {
+            border-color: var(--gold);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.1);
+        }
+
+        .laurel {
+            font-size: 3rem;
+            color: var(--gold);
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .award-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.2rem;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+
+        .award-desc {
+            font-size: 0.85rem;
+            color: #888;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* --- FOOTER --- */
+        footer {
+            padding: 50px 5%;
+            text-align: center;
+            border-top: 1px solid #222;
+            color: #444;
+            font-size: 0.85rem;
+        }
+
+        /* --- MODAL (POPUP) --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            opacity: 0; pointer-events: none;
+            transition: 0.3s ease;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+
+        .modal {
+            background: #111;
+            width: 90%; max-width: 800px;
+            border-radius: 20px;
+            border: 1px solid #333;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            overflow: hidden;
+            transform: scale(0.9);
+            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-overlay.active .modal { transform: scale(1); }
+
+        .modal-visual {
+            background: #1a1a1a;
+            display: flex; align-items: center; justify-content: center;
+            position: relative;
+            padding: 20px;
+        }
+
+        .modal-img {
+            max-width: 80%;
+            max-height: 80%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 20px rgba(0,0,0,0.5));
+        }
+
+        .modal-content { padding: 50px; position: relative; }
+        
+        .close-btn {
+            position: absolute; top: 20px; right: 20px;
+            background: none; color: #fff; font-size: 1.5rem;
+            opacity: 0.5; transition: 0.2s;
+            z-index: 10;
+        }
+        .close-btn:hover { opacity: 1; transform: rotate(90deg); }
+
+        .modal-tag {
+            font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase;
+            margin-bottom: 10px; display: inline-block;
+        }
+
+        .modal-title { font-size: 3rem; line-height: 1; margin-bottom: 20px; }
+        .modal-desc { color: var(--text-muted); line-height: 1.6; margin-bottom: 20px; }
+        
+        /* Fake Scarcity in Modal */
+        .live-viewers {
+            font-size: 0.75rem;
+            color: #ff4444;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .live-dot {
+            width: 8px; height: 8px; background: #ff4444; border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .qty-selector {
+            display: flex; align-items: center; gap: 15px; margin-bottom: 30px;
+        }
+
+        .qty-btn {
+            width: 40px; height: 40px; border-radius: 50%;
+            background: #222; color: #fff; font-size: 1.2rem;
+            display: flex; align-items: center; justify-content: center;
+            transition: 0.2s;
+        }
+        .qty-btn:hover { background: #333; }
+
+        .add-btn {
+            width: 100%;
+            padding: 18px;
+            background: #fff; color: #000;
+            font-weight: 900; text-transform: uppercase; letter-spacing: 1px;
+            border-radius: 12px;
+            transition: 0.3s;
+        }
+        
+        .add-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(255,255,255,0.1); }
+
+        /* --- TOAST NOTIFICATION --- */
+        .toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px);
+            background: #fff; color: #000;
+            padding: 15px 30px; border-radius: 50px;
+            font-weight: bold; font-size: 0.9rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 2000; transition: 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast span { color: #00aa00; font-size: 1.2rem; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #hero h1 { font-size: 3.5rem; }
+            .modal { grid-template-columns: 1fr; max-width: 95%; height: auto; max-height: 90vh; overflow-y: auto;}
+            .modal-visual { height: 250px; padding: 20px; }
+            .modal-content { padding: 30px; }
+            .modal-title { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="logo">SPLISH MEISTER</div>
+        <ul class="nav-items">
+            <li><a href="#products">SORTEN</a></li>
+            <li><a href="#awards">AWARDS</a></li>
+            <li class="cart-icon">
+                🛒 <span class="cart-count" id="cartCount">0</span>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Hero -->
+    <section id="hero">
+        <p class="slogan">Schluck für Schluck Legende</p>
+        <h1>TASTE THE<br>ENERGY<br>WITH<br>SPLISH MEISTER</h1>
+        <div class="scroll-indicator">↓</div>
+    </section>
+
+    <!-- Products Grid -->
+    <section id="products">
+        <h2 class="section-header">WÄHLE DEINE LEGENDE</h2>
+        
+        <div class="grid">
+            
+            <!-- Classic -->
+            <div class="card classic" onclick="openModal('classic')">
+                <div class="image-slot">
+                    <img src="https://i.imgur.com/9lkSez2.png" alt="Classic Can" class="product-img">
+                </div>
+                <h3>Classic</h3>
+                <p>Der Zitronen-Kick</p>
+                <button class="btn-view">Ansehen</button>
+            </div>
+
+            <!-- Blue -->
+            <div class="card blue" onclick="openModal('blue')">
+                <div class="scarcity-badge">Beliebteste Sorte aktuell</div>
+                <div class="image-slot">
+                    <img src="https://i.imgur.com/SAUoBPm.png" alt="Blue Can" class="product-img">
+                </div>
+                <h3>Blue Wave</h3>
+                <p>Geschmack der Welle</p>
+                <button class="btn-view">Ansehen</button>
+            </div>
+
+            <!-- Cherry -->
+            <div class="card cherry" onclick="openModal('cherry')">
+                <div class="image-slot">
+                    <img src="https://i.imgur.com/kzXRAEq.png" alt="Cherry Can" class="product-img">
+                </div>
+                <h3>Cherry Chinese</h3>
+                <p>Kirsche Explosion</p>
+                <button class="btn-view">Ansehen</button>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- FAKE AWARDS SECTION -->
+    <section id="awards">
+        <h2>Hall of Fame</h2>
+        <p class="award-subtitle">Unsere ernstgemeinten und völlig echten Auszeichnungen</p>
+        
+        <div class="awards-grid">
+            
+            <div class="award-card">
+                <div class="laurel">♛</div>
+                <h3 class="award-title">Erich Award 2026</h3>
+                <p class="award-desc">Für das Getränk welches Eric am einfachsten auf die Fresse geworfen hat</p>
+            </div>
+
+            <div class="award-card">
+                <div class="laurel">★</div>
+                <h3 class="award-title">Bestes Dosen Design</h3>
+                <p class="award-desc">Ja der name hats eigentlich ganz gut zusammengefasst</p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; Splish Meister - Schluck für Schluck LEGENDE</p>
+    </footer>
+
+    <!-- MODAL STRUCTURE -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <button class="close-btn" onclick="closeModal()">×</button>
+            
+            <div class="modal-visual" id="modalBg">
+                <img src="" alt="Can Detail" class="modal-img" id="modalImg">
+            </div>
+            
+            <div class="modal-content">
+                <span class="modal-tag" id="modalTag">Splish Meister</span>
+                <h2 class="modal-title" id="modalTitle">Flavor Name</h2>
+                <div class="live-viewers">
+                    <div class="live-dot"></div>
+                    <span id="viewerCount">14,923</span> Leute wollten das kaufen, wurden aber gescammt.
+                </div>
+                <p class="modal-desc" id="modalDesc">Description goes here.</p>
+                
+                <div class="qty-selector">
+                    <button class="qty-btn" onclick="adjustQty(-1)">-</button>
+                    <span id="qtyVal" style="font-weight:bold; width: 20px; text-align: center;">1</span>
+                    <button class="qty-btn" onclick="adjustQty(1)">+</button>
+                </div>
+
+                <button class="add-btn" onclick="addToCart()">In den Warenkorb</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast">
+        <span>✓</span> Produkt zum Warenkorb hinzugefügt
+    </div>
+
+    <script>
+        // Data for Flavors
+        const products = {
+            classic: {
+                title: "Classic",
+                tag: "The Original",
+                desc: "Der unverwechselbare Originalgeschmack. Spritzige Zitrone trifft auf legendäre Energie. Der Startschuss für deinen Tag. (aktuell alkoholfrei)",
+                color: "#FF8C00",
+                bg: "linear-gradient(135deg, #1a1a1a, #331a00)",
+                img: "https://i.imgur.com/9lkSez2.png"
+            },
+            blue: {
+                title: "Blue Wave",
+                tag: "Ice Cold",
+                desc: "Der Geschmack der Welle.",
+                color: "#00f2ff",
+                bg: "linear-gradient(135deg, #1a1a1a, #001a33)",
+                img: "https://i.imgur.com/SAUoBPm.png"
+            },
+            cherry: {
+                title: "Cherry China",
+                tag: "Cherry Flavour",
+                desc: "Süße Kirsche mit explosivem Kick. Fruchtig, frech und voller Leidenschaft. Für die Momente, die zählen. Am besten eiskalt genießen.",
+                color: "#ff0055",
+                bg: "linear-gradient(135deg, #1a1a1a, #33001a)",
+                img: "https://i.imgur.com/kzXRAEq.png"
+            }
+        };
+
+        const overlay = document.getElementById('modalOverlay');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalDesc = document.getElementById('modalDesc');
+        const modalTag = document.getElementById('modalTag');
+        const modalBg = document.getElementById('modalBg');
+        const modalImg = document.getElementById('modalImg');
+        const cartCountEl = document.getElementById('cartCount');
+        const qtyValEl = document.getElementById('qtyVal');
+        const viewerCountEl = document.getElementById('viewerCount');
+        
+        let currentQty = 1;
+        let cartTotal = 0;
+
+        // Open Modal
+        function openModal(flavor) {
+            const p = products[flavor];
+            modalTitle.innerText = p.title;
+            modalDesc.innerText = p.desc;
+            modalTag.innerText = p.tag;
+            modalTag.style.color = p.color;
+            modalTitle.style.color = p.color;
+            modalBg.style.background = p.bg;
+            modalImg.src = p.img;
+            
+            // Randomize Fake Viewer Count
+            const randomViewers = Math.floor(Math.random() * (50000 - 1000) + 1000).toLocaleString();
+            viewerCountEl.innerText = randomViewers;
+            
+            // Reset Qty
+            currentQty = 1;
+            qtyValEl.innerText = currentQty;
+
+            overlay.classList.add('active');
+        }
+
+        // Close Modal
+        function closeModal() {
+            overlay.classList.remove('active');
+        }
+
+        // Close on clicking outside
+        overlay.addEventListener('click', (e) => {
+            if(e.target === overlay) closeModal();
+        });
+
+        // Adjust Quantity
+        function adjustQty(change) {
+            if (currentQty + change > 0) {
+                currentQty += change;
+                qtyValEl.innerText = currentQty;
+            }
+        }
+
+        // Add to Cart Logic
+        function addToCart() {
+            cartTotal += currentQty;
+            cartCountEl.innerText = cartTotal;
+            closeModal();
+            showToast();
+        }
+
+        // Show Toast Notification
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
