@@ -1,444 +1,142 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GlassBoard v2</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
-    <style>
-        :root {
-            --bg-gradient: radial-gradient(circle at 10% 20%, rgb(30, 30, 40) 0%, rgb(10, 10, 15) 90%);
-            --glass-bg: rgba(255, 255, 255, 0.05);
-            --glass-border: 1px solid rgba(255, 255, 255, 0.1);
-            --text-color: #e0e0e0;
-            --accent-color: #a855f7;
-            /* Card Colors */
-            --c-default: rgba(255, 255, 255, 0.08);
-            --c-red: rgba(255, 89, 89, 0.25);
-            --c-blue: rgba(89, 166, 255, 0.25);
-            --c-green: rgba(89, 255, 147, 0.25);
-            --c-orange: rgba(255, 178, 89, 0.25);
-            --c-purple: rgba(189, 89, 255, 0.25);
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Blue | Projects</title>
 
-        body {
-            margin: 0;
-            font-family: 'Segoe UI', sans-serif;
-            background: var(--bg-gradient);
-            color: var(--text-color);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --card: rgba(255, 255, 255, 0.08);
+      --border: rgba(255, 255, 255, 0.15);
+      --text: #e6e9ee;
+      --subtext: #9aa4b2;
+      --cyan: #00eaff;
+    }
 
-        /* --- Header --- */
-        header {
-            padding: 15px 20px;
-            background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
-            border-bottom: var(--glass-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 10;
-        }
-        h1 { margin: 0; font-size: 1.2rem; }
-        .reset-btn { font-size: 0.8rem; background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #aaa; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+    * {
+      box-sizing: border-box;
+    }
 
-        /* --- Board Area --- */
-        #board {
-            flex-grow: 1;
-            padding: 20px;
-            overflow-x: auto;
-            overflow-y: hidden;
-            white-space: nowrap;
-            display: flex;
-            align-items: flex-start;
-            gap: 20px;
-            /* Mobile Scroll Snap */
-            scroll-snap-type: x mandatory;
-        }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(800px 400px at 50% -10%, rgba(0, 234, 255, 0.08), transparent),
+        var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+                   "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-        /* --- Lists --- */
-        .list {
-            background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            border: var(--glass-border);
-            border-radius: 12px;
-            width: 85vw; /* Mobile width */
-            max-width: 300px; /* Desktop width */
-            min-width: 300px;
-            display: flex;
-            flex-direction: column;
-            max-height: calc(100vh - 100px);
-            scroll-snap-align: center; /* Snap on mobile */
-        }
+    .container {
+      text-align: center;
+      padding: 48px 56px;
+      border-radius: 24px;
+      background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.12),
+        rgba(255, 255, 255, 0.04)
+      );
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--border);
+      box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      max-width: 420px;
+      width: 100%;
+    }
 
-        .list-header {
-            padding: 15px;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            cursor: grab;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
+    h1 {
+      margin: 0 0 8px 0;
+      font-size: 32px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
 
-        .list-cards {
-            flex-grow: 1;
-            padding: 10px;
-            overflow-y: auto;
-            min-height: 50px;
-        }
+    p {
+      margin: 0 0 32px 0;
+      color: var(--subtext);
+      font-size: 15px;
+    }
 
-        /* --- Cards --- */
-        .card {
-            background: var(--c-default);
-            margin-bottom: 10px;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.05);
-            cursor: pointer;
-            white-space: normal;
-            position: relative;
-            transition: transform 0.2s;
-            border-left: 4px solid transparent; /* Color indicator */
-        }
-        .card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.15); }
-        
-        .card-title { font-weight: 500; display: block; margin-bottom: 4px; }
-        .card-notes { font-size: 0.75rem; color: rgba(255,255,255,0.6); display: block; line-height: 1.4; }
+    .buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
 
-        /* --- Inputs --- */
-        .add-card-container { padding: 10px; }
-        input[type="text"] {
-            width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
-            color: white; padding: 10px; border-radius: 6px; box-sizing: border-box; outline: none;
-        }
+    a.button {
+      text-decoration: none;
+      color: var(--text);
+      padding: 14px 20px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      font-size: 16px;
+      font-weight: 500;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
 
-        .add-list-btn {
-            min-width: 300px; height: 50px;
-            background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2);
-            border-radius: 12px; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; color: #aaa;
-        }
+    a.button::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        120px 60px at 50% 120%,
+        rgba(0, 234, 255, 0.35),
+        transparent 70%
+      );
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
 
-        /* --- Modal (Popup) --- */
-        .modal-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 100;
-            justify-content: center; align-items: center;
-        }
-        .modal {
-            background: #1e1e28; width: 90%; max-width: 400px;
-            padding: 20px; border-radius: 12px; border: var(--glass-border);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        }
-        .modal h2 { margin-top: 0; font-size: 1.1rem; }
-        .modal label { display: block; margin-top: 15px; font-size: 0.8rem; color: #888; margin-bottom: 5px; }
-        .modal textarea {
-            width: 100%; height: 80px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
-            color: white; padding: 10px; border-radius: 6px; resize: none; box-sizing: border-box;
-        }
-        
-        .color-picker { display: flex; gap: 10px; margin-top: 10px; }
-        .color-dot {
-            width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid transparent;
-        }
-        .color-dot.selected { border-color: white; transform: scale(1.1); }
+    a.button:hover {
+      transform: translateY(-2px);
+      border-color: rgba(0, 234, 255, 0.6);
+      box-shadow:
+        0 0 0 1px rgba(0, 234, 255, 0.25),
+        0 0 24px rgba(0, 234, 255, 0.35);
+      color: white;
+    }
 
-        .modal-actions { margin-top: 20px; display: flex; justify-content: space-between; }
-        .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
-        .btn-save { background: var(--accent-color); color: white; }
-        .btn-delete { background: rgba(255, 95, 95, 0.1); color: #ff5f5f; }
+    a.button:hover::before {
+      opacity: 1;
+    }
 
-        /* Sortable Ghost */
-        .sortable-ghost { opacity: 0.4; }
-    </style>
+    footer {
+      margin-top: 28px;
+      font-size: 12px;
+      color: #7f8a99;
+    }
+  </style>
 </head>
+
 <body>
+  <div class="container">
+    <h1>Blue Projects</h1>
+    <p>Select a website to continue</p>
 
-<header>
-    <h1>GlassBoard v2</h1>
-    <button class="reset-btn" onclick="clearData()">Clear All Data</button>
-</header>
+    <div class="buttons">
+      <a class="button" href="blue-airlines.html">
+        ✈️ Blue Airlines – Flight Planner
+      </a>
 
-<div id="board">
-    <div class="add-list-btn" onclick="createNewList()">+ Add List</div>
-</div>
-
-<div class="modal-overlay" id="cardModal" onclick="closeModal(event)">
-    <div class="modal">
-        <h2>Edit Task</h2>
-        <input type="text" id="modalTitle" placeholder="Task Title">
-        
-        <label>Notes</label>
-        <textarea id="modalNotes" placeholder="Add details..."></textarea>
-        
-        <label>Color Code</label>
-        <div class="color-picker" id="colorPicker">
-            <div class="color-dot" style="background: var(--c-default)" data-color="default"></div>
-            <div class="color-dot" style="background: var(--c-red)" data-color="red"></div>
-            <div class="color-dot" style="background: var(--c-blue)" data-color="blue"></div>
-            <div class="color-dot" style="background: var(--c-green)" data-color="green"></div>
-            <div class="color-dot" style="background: var(--c-purple)" data-color="purple"></div>
-        </div>
-
-        <div class="modal-actions">
-            <button class="btn btn-delete" onclick="deleteCurrentCard()">Delete</button>
-            <button class="btn btn-save" onclick="saveCardChanges()">Save</button>
-        </div>
+      <a class="button" href="splish.html">
+        💦 Splish Meister
+      </a>
     </div>
-</div>
 
-<script>
-    // --- State & Storage ---
-    let boardData = [];
-    const boardEl = document.getElementById('board');
-    const addListBtn = document.querySelector('.add-list-btn');
-    let currentCardId = null; // Track which card is being edited
-    let selectedCardColor = 'default';
-
-    // Load on startup
-    window.addEventListener('DOMContentLoaded', () => {
-        loadData();
-    });
-
-    // --- Data Management ---
-
-    function saveData() {
-        // Scrape the DOM to build the data object (Simplest method for Drag/Drop sync)
-        const lists = document.querySelectorAll('.list');
-        const newData = [];
-
-        lists.forEach(list => {
-            const title = list.querySelector('.list-header span').innerText;
-            const cardEls = list.querySelectorAll('.card');
-            const cards = [];
-            
-            cardEls.forEach(c => {
-                cards.push({
-                    id: c.dataset.id,
-                    title: c.querySelector('.card-title').innerText,
-                    notes: c.dataset.notes || "",
-                    color: c.dataset.color || "default"
-                });
-            });
-
-            newData.push({ title, cards });
-        });
-
-        boardData = newData;
-        localStorage.setItem('glassboardData', JSON.stringify(boardData));
-    }
-
-    function loadData() {
-        const data = localStorage.getItem('glassboardData');
-        if (data) {
-            boardData = JSON.parse(data);
-            renderBoard();
-        } else {
-            // Default Demo Data
-            boardData = [
-                { 
-                    title: "Todo", 
-                    cards: [
-                        { id: Date.now(), title: "Click me to edit!", notes: "I have hidden details.", color: "blue" }
-                    ] 
-                }
-            ];
-            renderBoard();
-        }
-    }
-
-    function clearData() {
-        if(confirm("Delete all lists and tasks?")) {
-            localStorage.removeItem('glassboardData');
-            location.reload();
-        }
-    }
-
-    // --- Rendering ---
-
-    function renderBoard() {
-        // Remove existing lists (but keep the Add Button)
-        document.querySelectorAll('.list').forEach(e => e.remove());
-
-        boardData.forEach(listData => {
-            createListDOM(listData.title, listData.cards);
-        });
-        
-        initSortables();
-    }
-
-    function createListDOM(title, cards = []) {
-        const list = document.createElement('div');
-        list.className = 'list';
-        list.innerHTML = `
-            <div class="list-header">
-                <span>${title}</span>
-                <span style="cursor:pointer; opacity:0.5;" onclick="deleteList(this)">×</span>
-            </div>
-            <div class="list-cards"></div>
-            <div class="add-card-container">
-                <input type="text" placeholder="+ Add card" onkeypress="handleInput(event, this)">
-            </div>
-        `;
-
-        const cardContainer = list.querySelector('.list-cards');
-        cards.forEach(cardData => {
-            addCardDOM(cardContainer, cardData);
-        });
-
-        boardEl.insertBefore(list, addListBtn);
-    }
-
-    function addCardDOM(container, data) {
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.dataset.id = data.id || Date.now();
-        card.dataset.notes = data.notes || "";
-        card.dataset.color = data.color || "default";
-        
-        applyCardColor(card, data.color);
-
-        card.innerHTML = `
-            <span class="card-title">${data.title}</span>
-            <span class="card-notes">${data.notes}</span>
-        `;
-        
-        card.onclick = () => openModal(card);
-        container.appendChild(card);
-    }
-
-    function applyCardColor(card, colorName) {
-        // Map names to CSS variables
-        const colors = {
-            'default': 'var(--c-default)',
-            'red': 'var(--c-red)',
-            'blue': 'var(--c-blue)',
-            'green': 'var(--c-green)',
-            'purple': 'var(--c-purple)'
-        };
-        const bg = colors[colorName] || colors['default'];
-        card.style.background = bg;
-        // Add a colored border left for extra flair
-        card.style.borderLeftColor = colorName === 'default' ? 'transparent' : 'rgba(255,255,255,0.5)';
-    }
-
-    // --- Interactions ---
-
-    function createNewList() {
-        const title = prompt("List Title:");
-        if (title) {
-            createListDOM(title);
-            saveData();
-            initSortables();
-        }
-    }
-
-    function handleInput(e, input) {
-        if (e.key === 'Enter' && input.value.trim()) {
-            addCardDOM(input.closest('.list').querySelector('.list-cards'), {
-                id: Date.now(),
-                title: input.value,
-                notes: "",
-                color: "default"
-            });
-            input.value = "";
-            saveData();
-        }
-    }
-
-    function deleteList(btn) {
-        if(confirm("Delete list?")) {
-            btn.closest('.list').remove();
-            saveData();
-        }
-    }
-
-    // --- Drag & Drop ---
-    function initSortables() {
-        // Board Sorting (Lists)
-        new Sortable(boardEl, {
-            group: 'board',
-            draggable: '.list',
-            handle: '.list-header',
-            animation: 150,
-            onEnd: saveData // Save after drag
-        });
-
-        // List Sorting (Cards)
-        document.querySelectorAll('.list-cards').forEach(el => {
-            new Sortable(el, {
-                group: 'cards',
-                animation: 150,
-                onEnd: saveData // Save after drag
-            });
-        });
-    }
-
-    // --- Modal Logic ---
-    const modal = document.getElementById('cardModal');
-    const mTitle = document.getElementById('modalTitle');
-    const mNotes = document.getElementById('modalNotes');
-    const colorDots = document.querySelectorAll('.color-dot');
-    let activeCardElement = null;
-
-    function openModal(card) {
-        activeCardElement = card;
-        mTitle.value = card.querySelector('.card-title').innerText;
-        mNotes.value = card.dataset.notes;
-        
-        // Set Color Selection
-        selectedCardColor = card.dataset.color || 'default';
-        updateColorPickerUI();
-
-        modal.style.display = 'flex';
-    }
-
-    function closeModal(e) {
-        if (e.target === modal) modal.style.display = 'none';
-    }
-
-    // Color Picker Click
-    colorDots.forEach(dot => {
-        dot.addEventListener('click', () => {
-            selectedCardColor = dot.dataset.color;
-            updateColorPickerUI();
-        });
-    });
-
-    function updateColorPickerUI() {
-        colorDots.forEach(d => {
-            if(d.dataset.color === selectedCardColor) d.classList.add('selected');
-            else d.classList.remove('selected');
-        });
-    }
-
-    function saveCardChanges() {
-        if (!activeCardElement) return;
-        
-        // Update DOM
-        activeCardElement.querySelector('.card-title').innerText = mTitle.value;
-        activeCardElement.querySelector('.card-notes').innerText = mNotes.value;
-        activeCardElement.dataset.notes = mNotes.value;
-        activeCardElement.dataset.color = selectedCardColor;
-        
-        applyCardColor(activeCardElement, selectedCardColor);
-
-        modal.style.display = 'none';
-        saveData();
-    }
-
-    function deleteCurrentCard() {
-        if(confirm("Delete this task?")) {
-            activeCardElement.remove();
-            modal.style.display = 'none';
-            saveData();
-        }
-    }
-
-</script>
+    <footer>
+      21
+    </footer>
+  </div>
 </body>
 </html>
